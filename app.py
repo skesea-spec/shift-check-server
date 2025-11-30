@@ -5,17 +5,15 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-# 실제 서비스에서는 환경변수로 SECRET_KEY를 넣는 게 좋지만, 지금은 테스트용 고정값.
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "shift.db")
 
-
-# ---------------- DB 유틸 ----------------
-
+# -------------------------------------------------
+# DB 유틸
+# -------------------------------------------------
 def get_db():
-    """요청당 한 번만 연결하고, 테이블이 없으면 만든다."""
     if "db" not in g:
         first = not os.path.exists(DATABASE)
         g.db = sqlite3.connect(DATABASE)
@@ -28,7 +26,6 @@ def get_db():
 
 
 def init_db(db, if_not_exists: bool = False):
-    """기본 테이블 생성 + 스키마 보정."""
     opt = "IF NOT EXISTS " if if_not_exists else ""
     users_sql = f"""
         CREATE TABLE {opt}users (
@@ -69,14 +66,13 @@ def init_db(db, if_not_exists: bool = False):
 
 
 def ensure_schema(db):
-    """기존 DB에도 필요한 컬럼/테이블이 있는지 체크해서 없으면 추가."""
-    # shifts.mileage 컬럼이 없으면 추가
+    # shifts 테이블에 mileage 컬럼 없으면 추가
     info = db.execute("PRAGMA table_info(shifts)").fetchall()
-    cols = [row[1] for row in info]  # (cid, name, type, ...)
+    cols = [row[1] for row in info]
     if "mileage" not in cols:
         db.execute("ALTER TABLE shifts ADD COLUMN mileage INTEGER NOT NULL DEFAULT 0;")
         db.commit()
-    # mileage_adjustments 테이블 보장
+    # mileage_adjustments 테이블 없으면 생성
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS mileage_adjustments (
@@ -118,14 +114,11 @@ def logout_user():
 
 
 def calculate_mileage(shift_date: str, start_time: str, end_time: str) -> int:
-    """
-    날짜(YYYY-MM-DD), 출근시간(HH:MM), 퇴근시간(HH:MM)을 받아
-    익일 퇴근도 고려해서 근무시간을 계산하고 1시간당 100 마일리지로 환산.
-    """
+    """근무시간을 계산해서 1시간당 100 마일리지로 환산."""
     try:
         start_dt = datetime.strptime(f"{shift_date} {start_time}", "%Y-%m-%d %H:%M")
         end_dt = datetime.strptime(f"{shift_date} {end_time}", "%Y-%m-%d %H:%M")
-        # 퇴근이 출근보다 같거나 빠르면 다음날 퇴근으로 처리
+        # 퇴근이 출근보다 같거나 빠르면 다음날 퇴근 처리
         if end_dt <= start_dt:
             end_dt += timedelta(days=1)
         hours = (end_dt - start_dt).total_seconds() / 3600.0
@@ -137,76 +130,79 @@ def calculate_mileage(shift_date: str, start_time: str, end_time: str) -> int:
         return 0
 
 
-# ---------------- 공통 템플릿용 CSS 조각 ----------------
-
+# -------------------------------------------------
+# 공통 CSS (모바일용, 큰 글씨)
+# -------------------------------------------------
 COMMON_CSS = """
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background:#f4f4f4;
-      font-size:18px;
-      line-height:1.5;
-      margin:0;
-      padding:0;
-    }
-    .wrap {
-      max-width: 960px;
-      margin:12px auto;
-      padding:16px 12px 24px 12px;
-      box-sizing:border-box;
-    }
-    .card {
-      background:white;
-      border-radius:16px;
-      box-shadow:0 4px 12px rgba(0,0,0,0.05);
-      padding:20px 16px;
-    }
-    .dk-header {
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin-bottom:16px;
-      padding-bottom:8px;
-      border-bottom:1px solid #eee;
-    }
-    .dk-logo {
-      display:flex;
-      align-items:center;
-      gap:8px;
-      font-weight:700;
-      font-size:1.3rem;
-    }
-    .dk-logo-icon { font-size:1.8rem; }
-    .dk-nav a {
-      margin-left:10px;
-      font-size:0.95rem;
-      text-decoration:none;
-      color:#333;
-    }
-    .dk-nav a:hover { text-decoration:underline; }
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:#f4f4f4;
+  font-size:18px;
+  line-height:1.5;
+  margin:0;
+  padding:0;
+}
+.wrap {
+  max-width: 960px;
+  margin:12px auto;
+  padding:16px 12px 24px 12px;
+  box-sizing:border-box;
+}
+.card {
+  background:white;
+  border-radius:16px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.05);
+  padding:20px 16px;
+}
+.dk-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:16px;
+  padding-bottom:8px;
+  border-bottom:1px solid #eee;
+}
+.dk-logo {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+  font-size:1.3rem;
+}
+.dk-logo-icon { font-size:1.8rem; }
+.dk-nav a {
+  margin-left:10px;
+  font-size:0.95rem;
+  text-decoration:none;
+  color:#333;
+}
+.dk-nav a:hover { text-decoration:underline; }
 
-    h1 { margin:0 0 8px 0; font-size:1.5rem; }
-    h2 { margin:16px 0 8px 0; font-size:1.2rem; }
+h1 { margin:0 0 8px 0; font-size:1.5rem; }
+h2 { margin:16px 0 8px 0; font-size:1.2rem; }
 
-    button {
-      padding:10px 16px;
-      border:none;
-      border-radius:999px;
-      background:#4f46e5;
-      color:white;
-      font-weight:600;
-      cursor:pointer;
-      font-size:1rem;
-    }
-    button.small {
-      padding:6px 10px;
-      font-size:0.85rem;
-    }
-    .small { font-size:0.9rem; color:#666; }
+button {
+  padding:10px 16px;
+  border:none;
+  border-radius:999px;
+  background:#4f46e5;
+  color:white;
+  font-weight:600;
+  cursor:pointer;
+  font-size:1rem;
+}
+button.small {
+  padding:6px 10px;
+  font-size:0.85rem;
+}
+.small { font-size:0.9rem; color:#666; }
 """
 
-# ---------------- 템플릿 ----------------
 
-INDEX_HTML = f"""
+# -------------------------------------------------
+# 템플릿들 (Jinja용, f-string 아님)
+# -------------------------------------------------
+INDEX_HTML = """
 <!doctype html>
 <html lang="ko">
 <head>
@@ -214,8 +210,8 @@ INDEX_HTML = f"""
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shift Check - 출퇴근 계획</title>
   <style>
-    {COMMON_CSS}
-    .role-btns a {{
+    {{ common_css|safe }}
+    .role-btns a {
       display:block;
       margin:14px 0;
       padding:14px 16px;
@@ -224,9 +220,9 @@ INDEX_HTML = f"""
       font-weight:600;
       font-size:1.1rem;
       text-align:center;
-    }}
-    .worker {{ background:#e0f2ff; color:#0052a3; }}
-    .owner {{ background:#ffe8d5; color:#a34700; }}
+    }
+    .worker { background:#e0f2ff; color:#0052a3; }
+    .owner { background:#ffe8d5; color:#a34700; }
   </style>
 </head>
 <body>
@@ -275,22 +271,22 @@ INDEX_HTML = f"""
 """
 
 
-AUTH_HTML = f"""
+AUTH_HTML = """
 <!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{{{ title }}}}</title>
+  <title>{{ title }}</title>
   <style>
-    {COMMON_CSS}
-    label {{
+    {{ common_css|safe }}
+    label {
       display:block;
       margin-top:14px;
       font-weight:600;
       font-size:1rem;
-    }}
-    input {{
+    }
+    input {
       width:100%;
       padding:10px;
       margin-top:6px;
@@ -298,9 +294,9 @@ AUTH_HTML = f"""
       border-radius:10px;
       border:1px solid #ccc;
       font-size:1rem;
-    }}
-    .error {{ color:#c00; margin-top:10px; font-size:0.95rem; }}
-    a {{ color:#4f46e5; text-decoration:none; }}
+    }
+    .error { color:#c00; margin-top:10px; font-size:0.95rem; }
+    a { color:#4f46e5; text-decoration:none; }
   </style>
 </head>
 <body>
@@ -368,78 +364,78 @@ AUTH_HTML = f"""
 """
 
 
-DASHBOARD_HTML = f"""
+DASHBOARD_HTML = """
 <!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{{{ title }}}}</title>
+  <title>{{ title }}</title>
   <style>
-    {COMMON_CSS}
-    .subtitle {{ color:#555; margin-bottom:8px; }}
-    .top-bar {{
+    {{ common_css|safe }}
+    .subtitle { color:#555; margin-bottom:8px; }
+    .top-bar {
       display:flex;
       justify-content:space-between;
       align-items:flex-start;
       gap:10px;
       flex-wrap:wrap;
-    }}
-    .tag {{
+    }
+    .tag {
       display:inline-block;
       padding:4px 10px;
       border-radius:999px;
       font-size:0.9rem;
-    }}
-    .tag-worker {{ background:#e0f2ff; color:#0052a3; }}
-    .tag-owner {{ background:#ffe8d5; color:#a34700; }}
+    }
+    .tag-worker { background:#e0f2ff; color:#0052a3; }
+    .tag-owner { background:#ffe8d5; color:#a34700; }
 
-    form.shift-form {{
+    form.shift-form {
       margin:12px 0 18px 0;
       padding:14px;
       background:#f9fafb;
       border-radius:12px;
       font-size:0.95rem;
-    }}
-    label.inline {{
+    }
+    label.inline {
       display:inline-block;
       margin:8px 8px 4px 0;
-    }}
-    input[type="date"], input[type="time"], input[type="text"], select {{
-        padding:8px 6px;
-        border-radius:8px;
-        border:1px solid #ccc;
-        font-size:0.95rem;
-    }}
+    }
+    input[type="date"], input[type="time"], input[type="text"], select {
+      padding:8px 6px;
+      border-radius:8px;
+      border:1px solid #ccc;
+      font-size:0.95rem;
+    }
 
-    .table-wrap {{ overflow-x:auto; margin-top:12px; }}
-    table {{ width:100%; border-collapse:collapse; font-size:0.9rem; min-width:720px; }}
-    th, td {{ border-bottom:1px solid #eee; padding:8px 6px; text-align:left; white-space:nowrap; }}
-    th {{ background:#f9fafb; }}
-    tr:nth-child(even) {{ background:#fafafa; }}
+    .table-wrap { overflow-x:auto; margin-top:12px; }
+    table { width:100%; border-collapse:collapse; font-size:0.9rem; min-width:720px; }
+    th, td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; white-space:nowrap; }
+    th { background:#f9fafb; }
+    tr:nth-child(even) { background:#fafafa; }
 
-    .actions a, .actions button {{
+    .actions a, .actions button {
       font-size:0.8rem;
       padding:4px 8px;
       border-radius:999px;
       margin-left:4px;
-    }}
-    .actions form {{ display:inline; }}
+    }
+    .actions form { display:inline; }
 
-    .filter-form {{
+    .filter-form {
       margin:8px 0 12px 0;
       padding:10px;
       background:#f9fafb;
       border-radius:12px;
       font-size:0.9rem;
-    }}
-    .mileage-box {{
+    }
+    .mileage-box {
       margin:8px 0 16px 0;
       padding:10px;
       background:#fef6e7;
       border-radius:12px;
       font-size:0.9rem;
-    }}
+    }
   </style>
 </head>
 <body>
@@ -529,7 +525,7 @@ DASHBOARD_HTML = f"""
             <br>
             <button type="submit">마일리지 조정 추가</button>
           </form>
-          <p class="small">출퇴근 계획에 따른 자동 적립과 별도로, 보너스/정정 등이 필요할 때 사용합니다.</p>
+          <p class="small">출퇴근 계획 자동 적립과 별도로, 보너스/정정이 필요할 때 사용합니다.</p>
 
           <div class="table-wrap" style="margin-top:8px;">
             <table>
@@ -614,7 +610,7 @@ DASHBOARD_HTML = f"""
 """
 
 
-EDIT_SHIFT_HTML = f"""
+EDIT_SHIFT_HTML = """
 <!doctype html>
 <html lang="ko">
 <head>
@@ -622,14 +618,14 @@ EDIT_SHIFT_HTML = f"""
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>출퇴근 기록 수정</title>
   <style>
-    {COMMON_CSS}
-    label {{
+    {{ common_css|safe }}
+    label {
       display:block;
       margin-top:14px;
       font-weight:600;
       font-size:1rem;
-    }}
-    input {{
+    }
+    input {
       width:100%;
       padding:10px;
       margin-top:6px;
@@ -637,8 +633,8 @@ EDIT_SHIFT_HTML = f"""
       border-radius:10px;
       border:1px solid #ccc;
       font-size:1rem;
-    }}
-    a {{ color:#4f46e5; text-decoration:none; }}
+    }
+    a { color:#4f46e5; text-decoration:none; }
   </style>
 </head>
 <body>
@@ -650,7 +646,6 @@ EDIT_SHIFT_HTML = f"""
           <span class="dk-logo-text">동탄콜</span>
         </div>
         <nav class="dk-nav">
-          <a href="{{ url_for('profile') }}">내 정보</a>
           {% if user['role']=='worker' %}
             <a href="{{ url_for('worker_dashboard') }}">기사 대시보드</a>
           {% else %}
@@ -684,7 +679,7 @@ EDIT_SHIFT_HTML = f"""
 """
 
 
-PROFILE_HTML = f"""
+PROFILE_HTML = """
 <!doctype html>
 <html lang="ko">
 <head>
@@ -692,34 +687,34 @@ PROFILE_HTML = f"""
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>내 정보 - 동탄콜</title>
   <style>
-    {COMMON_CSS}
-    .summary-box {{
+    {{ common_css|safe }}
+    .summary-box {
       display:flex;
       flex-wrap:wrap;
       gap:12px;
       margin:12px 0 16px 0;
-    }}
-    .summary-item {{
+    }
+    .summary-item {
       flex:1 1 120px;
       background:#f9fafb;
       border-radius:12px;
       padding:10px 12px;
-    }}
-    .summary-item span {{
+    }
+    .summary-item span {
       display:block;
       font-size:0.9rem;
       color:#666;
-    }}
-    .summary-item strong {{
+    }
+    .summary-item strong {
       display:block;
       margin-top:4px;
       font-size:1.3rem;
-    }}
-    .table-wrap {{ overflow-x:auto; margin-top:12px; }}
-    table {{ width:100%; border-collapse:collapse; font-size:0.9rem; min-width:640px; }}
-    th, td {{ border-bottom:1px solid #eee; padding:8px 6px; text-align:left; white-space:nowrap; }}
-    th {{ background:#f9fafb; }}
-    tr:nth-child(even) {{ background:#fafafa; }}
+    }
+    .table-wrap { overflow-x:auto; margin-top:12px; }
+    table { width:100%; border-collapse:collapse; font-size:0.9rem; min-width:640px; }
+    th, td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; white-space:nowrap; }
+    th { background:#f9fafb; }
+    tr:nth-child(even) { background:#fafafa; }
   </style>
 </head>
 <body>
@@ -822,12 +817,57 @@ PROFILE_HTML = f"""
 """
 
 
-# ---------------- 라우트 ----------------
+# -------------------------------------------------
+# 공통 헬퍼
+# -------------------------------------------------
+def require_login(role=None):
+    user = get_current_user()
+    if not user:
+        return None, redirect(url_for("index"))
+    if role and user["role"] != role:
+        return None, redirect(url_for("index"))
+    return user, None
 
+
+def load_all_shifts(current_user, start=None, end=None):
+    db = get_db()
+    sql = """
+        SELECT s.*, u.name
+        FROM shifts s
+        JOIN users u ON s.user_id = u.id
+    """
+    conditions = []
+    params = []
+    if start:
+        conditions.append("s.shift_date >= ?")
+        params.append(start)
+    if end:
+        conditions.append("s.shift_date <= ?")
+        params.append(end)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY s.shift_date ASC, s.start_time ASC"
+    rows = db.execute(sql, params).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["can_manage"] = (current_user["role"] == "owner") or (current_user["id"] == r["user_id"])
+        result.append(d)
+    return result
+
+
+def can_manage_shift(user, shift_row):
+    return (user["role"] == "owner") or (user["id"] == shift_row["user_id"])
+
+
+# -------------------------------------------------
+# 라우트들
+# -------------------------------------------------
 @app.route("/")
 def index():
     user = get_current_user()
-    return render_template_string(INDEX_HTML, user=user)
+    return render_template_string(INDEX_HTML, user=user, common_css=COMMON_CSS)
 
 
 @app.route("/logout")
@@ -836,8 +876,7 @@ def logout():
     return redirect(url_for("index"))
 
 
-# ---- 기사(워커) 인증 ----
-
+# ----- 기사(워커) 인증 -----
 @app.route("/worker/register", methods=["GET", "POST"])
 def worker_register():
     error = None
@@ -876,6 +915,7 @@ def worker_register():
         role="worker",
         error=error,
         user=get_current_user(),
+        common_css=COMMON_CSS,
     )
 
 
@@ -903,11 +943,11 @@ def worker_login():
         role="worker",
         error=error,
         user=get_current_user(),
+        common_css=COMMON_CSS,
     )
 
 
-# ---- 사업주 인증 ----
-
+# ----- 사업주 인증 -----
 @app.route("/owner/register", methods=["GET", "POST"])
 def owner_register():
     error = None
@@ -946,6 +986,7 @@ def owner_register():
         role="owner",
         error=error,
         user=get_current_user(),
+        common_css=COMMON_CSS,
     )
 
 
@@ -973,50 +1014,11 @@ def owner_login():
         role="owner",
         error=error,
         user=get_current_user(),
+        common_css=COMMON_CSS,
     )
 
 
-# ---- 공통: 로그인 체크 & 데이터 ----
-
-def require_login(role=None):
-    user = get_current_user()
-    if not user:
-        return None, redirect(url_for("index"))
-    if role and user["role"] != role:
-        return None, redirect(url_for("index"))
-    return user, None
-
-
-def load_all_shifts(current_user, start=None, end=None):
-    db = get_db()
-    sql = """
-        SELECT s.*, u.name
-        FROM shifts s
-        JOIN users u ON s.user_id = u.id
-    """
-    conditions = []
-    params = []
-    if start:
-        conditions.append("s.shift_date >= ?")
-        params.append(start)
-    if end:
-        conditions.append("s.shift_date <= ?")
-        params.append(end)
-    if conditions:
-        sql += " WHERE " + " AND ".join(conditions)
-    sql += " ORDER BY s.shift_date ASC, s.start_time ASC"
-    rows = db.execute(sql, params).fetchall()
-
-    result = []
-    for r in rows:
-        d = dict(r)
-        d["can_manage"] = (current_user["role"] == "owner") or (current_user["id"] == r["user_id"])
-        result.append(d)
-    return result
-
-
-# ---- 기사 대시보드 ----
-
+# ----- 기사 대시보드 -----
 @app.route("/worker/dashboard", methods=["GET", "POST"])
 def worker_dashboard():
     user, resp = require_login("worker")
@@ -1060,11 +1062,11 @@ def worker_dashboard():
         filter_end=None,
         workers=[],
         owner_adjustments=[],
+        common_css=COMMON_CSS,
     )
 
 
-# ---- 사업주 대시보드 ----
-
+# ----- 사업주 대시보드 -----
 @app.route("/owner/dashboard")
 def owner_dashboard():
     user, resp = require_login("owner")
@@ -1097,15 +1099,11 @@ def owner_dashboard():
         filter_end=end,
         workers=workers,
         owner_adjustments=owner_adjustments,
+        common_css=COMMON_CSS,
     )
 
 
-# ---- 출퇴근 기록 수정/삭제 ----
-
-def can_manage_shift(user, shift_row):
-    return (user["role"] == "owner") or (user["id"] == shift_row["user_id"])
-
-
+# ----- 출퇴근 기록 수정/삭제 -----
 @app.route("/shift/<int:shift_id>/edit", methods=["GET", "POST"])
 def edit_shift(shift_id):
     user, resp = require_login()
@@ -1139,7 +1137,13 @@ def edit_shift(shift_id):
                 return redirect(url_for("owner_dashboard"))
 
     back_url = url_for("worker_dashboard") if user["role"] == "worker" else url_for("owner_dashboard")
-    return render_template_string(EDIT_SHIFT_HTML, user=user, shift=shift, back_url=back_url)
+    return render_template_string(
+        EDIT_SHIFT_HTML,
+        user=user,
+        shift=shift,
+        back_url=back_url,
+        common_css=COMMON_CSS,
+    )
 
 
 @app.route("/shift/<int:shift_id>/delete", methods=["POST"])
@@ -1160,8 +1164,7 @@ def delete_shift(shift_id):
         return redirect(url_for("owner_dashboard"))
 
 
-# ---- 마일리지 수동 조정 (사업주 전용) ----
-
+# ----- 마일리지 수동 조정 (사업주) -----
 @app.route("/owner/mileage/add", methods=["POST"])
 def add_mileage():
     user, resp = require_login("owner")
@@ -1207,8 +1210,7 @@ def delete_mileage(adj_id):
     return redirect(url_for("owner_dashboard"))
 
 
-# ---- 내 정보 페이지 ----
-
+# ----- 내 정보 페이지 -----
 @app.route("/me")
 def profile():
     user, resp = require_login()
@@ -1260,6 +1262,7 @@ def profile():
         total_mileage=total_mileage,
         recent_shifts=recent_shifts,
         my_adjustments=my_adjustments,
+        common_css=COMMON_CSS,
     )
 
 
