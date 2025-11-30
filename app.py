@@ -60,7 +60,19 @@ def init_db(db, if_not_exists: bool = False):
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
     """
-    db.executescript(users_sql + shifts_sql + mileage_sql)
+    payouts_sql = f"""
+        CREATE TABLE {opt}payout_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            note TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+    """
+    db.executescript(users_sql + shifts_sql + mileage_sql + payouts_sql)
     db.commit()
     ensure_schema(db)
 
@@ -81,6 +93,21 @@ def ensure_schema(db):
             amount INTEGER NOT NULL,
             note TEXT,
             created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+        """
+    )
+    # payout_requests 테이블 없으면 생성
+    db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS payout_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount INTEGER NOT NULL,
+            status TEXT NOT NULL,
+            note TEXT,
+            created_at TEXT NOT NULL,
+            completed_at TEXT,
             FOREIGN KEY (user_id) REFERENCES users(id)
         );
         """
@@ -130,6 +157,27 @@ def calculate_mileage(shift_date: str, start_time: str, end_time: str) -> int:
         return 0
 
 
+def get_user_mileage(user_id: int):
+    """자동/수동/총 마일리지 계산."""
+    db = get_db()
+    auto_row = db.execute(
+        "SELECT COALESCE(SUM(mileage),0) AS total FROM shifts WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    auto_mileage = auto_row["total"] if auto_row and auto_row["total"] is not None else 0
+
+    manual_row = db.execute(
+        "SELECT COALESCE(SUM(amount),0) AS total FROM mileage_adjustments WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    manual_mileage = (
+        manual_row["total"] if manual_row and manual_row["total"] is not None else 0
+    )
+
+    total = auto_mileage + manual_mileage
+    return auto_mileage, manual_mileage, total
+
+
 # -------------------------------------------------
 # 공통 CSS (모바일용, 큰 글씨)
 # -------------------------------------------------
@@ -156,23 +204,24 @@ body {
 }
 .dk-header {
   display:flex;
-  justify-content:space-between;
-  align-items:center;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
   margin-bottom:16px;
   padding-bottom:8px;
   border-bottom:1px solid #eee;
 }
 .dk-logo {
-  display:flex;
-  align-items:center;
-  gap:8px;
   font-weight:700;
-  font-size:1.3rem;
+  font-size:1.4rem;
+  white-space:nowrap;
 }
-.dk-logo-icon { font-size:1.8rem; }
+.dk-logo-text {
+  white-space:nowrap;
+}
 .dk-nav a {
-  margin-left:10px;
-  font-size:0.95rem;
+  margin-right:10px;
+  font-size:1rem;
   text-decoration:none;
   color:#333;
 }
@@ -230,8 +279,7 @@ INDEX_HTML = """
     <div class="card">
       <header class="dk-header">
         <div class="dk-logo">
-          <span class="dk-logo-icon">🛵</span>
-          <span class="dk-logo-text">동탄콜</span>
+          <span class="dk-logo-text">🛵 동탄콜</span>
         </div>
         <nav class="dk-nav">
           {% if user %}
@@ -304,8 +352,7 @@ AUTH_HTML = """
     <div class="card">
       <header class="dk-header">
         <div class="dk-logo">
-          <span class="dk-logo-icon">🛵</span>
-          <span class="dk-logo-text">동탄콜</span>
+          <span class="dk-logo-text">🛵 동탄콜</span>
         </div>
         <nav class="dk-nav">
           {% if user %}
@@ -401,7 +448,7 @@ DASHBOARD_HTML = """
       display:inline-block;
       margin:8px 8px 4px 0;
     }
-    input[type="date"], input[type="time"], input[type="text"], select {
+    input[type="date"], input[type="text"], select {
       padding:8px 6px;
       border-radius:8px;
       border:1px solid #ccc;
@@ -421,6 +468,13 @@ DASHBOARD_HTML = """
       margin-left:4px;
     }
     .actions form { display:inline; }
+    .actions .delete-btn {
+      background:#fee2e2;
+      color:#b91c1c;
+    }
+    .actions .delete-btn:hover {
+      background:#fecaca;
+    }
 
     .filter-form {
       margin:8px 0 12px 0;
@@ -436,6 +490,20 @@ DASHBOARD_HTML = """
       border-radius:12px;
       font-size:0.9rem;
     }
+    .status-badge {
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:0.8rem;
+    }
+    .status-pending {
+      background:#e0f2ff;
+      color:#1d4ed8;
+    }
+    .status-completed {
+      background:#dcfce7;
+      color:#15803d;
+    }
   </style>
 </head>
 <body>
@@ -443,8 +511,7 @@ DASHBOARD_HTML = """
     <div class="card">
       <header class="dk-header">
         <div class="dk-logo">
-          <span class="dk-logo-icon">🛵</span>
-          <span class="dk-logo-text">동탄콜</span>
+          <span class="dk-logo-text">🛵 동탄콜</span>
         </div>
         <nav class="dk-nav">
           <a href="{{ url_for('profile') }}">내 정보</a>
@@ -480,18 +547,29 @@ DASHBOARD_HTML = """
             <input type="date" name="shift_date" value="{{ today }}" required>
           </label>
           <label class="inline">출근<br>
-            <input type="time" name="start_time" required>
+            <input type="text" name="start_time" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="예: 09:00" required>
           </label>
           <label class="inline">퇴근<br>
-            <input type="time" name="end_time" required>
+            <input type="text" name="end_time" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="예: 18:00" required>
           </label>
           <label class="inline">메모<br>
             <input type="text" name="note" placeholder="예: 강남구 위주, 야간 가능" style="min-width:240px;">
           </label>
           <br>
           <button type="submit">저장</button>
-          <p class="small">퇴근 시간이 출근 시간보다 빠르면 자동으로 <strong>다음날 퇴근</strong>으로 계산합니다.</p>
+          <p class="small">퇴근 시간이 출근 시간보다 빠르면 자동으로 <strong>다음날 퇴근</strong>으로 계산합니다. (24시간제, 예: 21:00 → 09:00)</p>
         </form>
+
+        <div class="mileage-box">
+          <p>현재 누적 마일리지: <strong>{{ total_mileage }}</strong></p>
+          {% if pending_payout %}
+            <p class="small">이미 출납요청이 접수되어 있습니다. 사업주 처리 후 다시 요청할 수 있습니다.</p>
+          {% else %}
+            <form method="post" action="{{ url_for('request_payout') }}" onsubmit="return confirm('현재 누적 마일리지 {{ total_mileage }}점을 출납요청 하시겠습니까?');">
+              <button type="submit">마일리지 출납요청</button>
+            </form>
+          {% endif %}
+        </div>
       {% else %}
         <div class="filter-form">
           <form method="get">
@@ -503,7 +581,7 @@ DASHBOARD_HTML = """
             </label>
             <button type="submit">조회</button>
           </form>
-          <p class="small">날짜를 비워두면 전체 기간을 조회합니다.</p>
+          <p class="small">날짜를 비워두면 기본으로 8일(오늘~7일 후) 범위를 보여줍니다.</p>
         </div>
 
         <h2>마일리지 관리 (사업주 전용)</h2>
@@ -547,7 +625,7 @@ DASHBOARD_HTML = """
                       {{ adj['note'] or '' }}
                       <span class="actions">
                         <form method="post" action="{{ url_for('delete_mileage', adj_id=adj['id']) }}" onsubmit="return confirm('이 마일리지 조정을 삭제할까요?');">
-                          <button type="submit" class="small">삭제</button>
+                          <button type="submit" class="small delete-btn">삭제</button>
                         </form>
                       </span>
                     </td>
@@ -559,10 +637,71 @@ DASHBOARD_HTML = """
             </table>
           </div>
         </div>
+
+        <h2>마일리지 출납요청</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>요청시간</th>
+                <th>기사</th>
+                <th>요청 마일리지</th>
+                <th>상태</th>
+                <th>완료시간</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in payout_requests %}
+                <tr>
+                  <td>{{ req['created_at'] }}</td>
+                  <td>{{ req['name'] }}</td>
+                  <td>{{ req['amount'] }}</td>
+                  <td>
+                    {% if req['status'] == 'completed' %}
+                      <span class="status-badge status-completed">출납완료</span>
+                    {% else %}
+                      <span class="status-badge status-pending">출납대기</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ req['completed_at'] or '' }}</td>
+                  <td>
+                    {% if req['status'] == 'pending' %}
+                      <form method="post" action="{{ url_for('complete_payout', req_id=req['id']) }}" onsubmit="return confirm('이 출납요청을 완료 처리할까요? 해당 마일리지만큼 차감됩니다.');">
+                        <button type="submit" class="small">출납완료</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% else %}
+                <tr><td colspan="6">접수된 출납요청이 없습니다.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% endif %}
 
       <h2>전체 출퇴근 계획</h2>
-      <p class="small">기사/사업주 모두 같은 화면을 보고 근무 계획을 맞출 수 있습니다. (1시간당 100 마일리지)</p>
+      <p class="small">
+        기사/사업주 모두 같은 화면을 보고 근무 계획을 맞출 수 있습니다. (1시간당 100 마일리지)<br>
+        {% if user['role'] == 'worker' %}
+          {% if not show_all_shifts %}
+            최근 {{ shift_limit }}개만 표시 중입니다.
+            <a href="{{ url_for('worker_dashboard', all_shifts='1') }}">전체 보기</a>
+          {% else %}
+            전체 기록을 표시 중입니다.
+            <a href="{{ url_for('worker_dashboard') }}">최근 {{ shift_limit }}개만 보기</a>
+          {% endif %}
+        {% else %}
+          {% if not show_all_shifts %}
+            최근 {{ shift_limit }}개만 표시 중입니다.
+            <a href="{{ url_for('owner_dashboard', start=filter_start or '', end=filter_end or '', all_shifts='1') }}">전체 보기</a>
+          {% else %}
+            전체 기록을 표시 중입니다.
+            <a href="{{ url_for('owner_dashboard', start=filter_start or '', end=filter_end or '') }}">최근 {{ shift_limit }}개만 보기</a>
+          {% endif %}
+        {% endif %}
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -591,7 +730,7 @@ DASHBOARD_HTML = """
                     <span class="actions">
                       <a href="{{ url_for('edit_shift', shift_id=s['id']) }}">수정</a>
                       <form method="post" action="{{ url_for('delete_shift', shift_id=s['id']) }}" onsubmit="return confirm('이 기록을 삭제할까요?');">
-                        <button type="submit" class="small">삭제</button>
+                        <button type="submit" class="small delete-btn">삭제</button>
                       </form>
                     </span>
                   {% endif %}
@@ -642,8 +781,7 @@ EDIT_SHIFT_HTML = """
     <div class="card">
       <header class="dk-header">
         <div class="dk-logo">
-          <span class="dk-logo-icon">🛵</span>
-          <span class="dk-logo-text">동탄콜</span>
+          <span class="dk-logo-text">🛵 동탄콜</span>
         </div>
         <nav class="dk-nav">
           {% if user['role']=='worker' %}
@@ -660,11 +798,11 @@ EDIT_SHIFT_HTML = """
         <label>날짜
           <input type="date" name="shift_date" value="{{ shift['shift_date'] }}" required>
         </label>
-        <label>출근
-          <input type="time" name="start_time" value="{{ shift['start_time'] }}" required>
+        <label>출근 (24시간제, 예: 09:00)
+          <input type="text" name="start_time" value="{{ shift['start_time'] }}" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" required>
         </label>
-        <label>퇴근
-          <input type="time" name="end_time" value="{{ shift['end_time'] }}" required>
+        <label>퇴근 (24시간제, 예: 18:00)
+          <input type="text" name="end_time" value="{{ shift['end_time'] }}" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" required>
         </label>
         <label>메모
           <input type="text" name="note" value="{{ shift['note'] or '' }}">
@@ -722,8 +860,7 @@ PROFILE_HTML = """
     <div class="card">
       <header class="dk-header">
         <div class="dk-logo">
-          <span class="dk-logo-icon">🛵</span>
-          <span class="dk-logo-text">동탄콜</span>
+          <span class="dk-logo-text">🛵 동탄콜</span>
         </div>
         <nav class="dk-nav">
           {% if user['role']=='worker' %}
@@ -758,6 +895,15 @@ PROFILE_HTML = """
       </div>
 
       <h2>최근 출퇴근 기록</h2>
+      <p class="small">
+        {% if not all_mode %}
+          최근 {{ recent_limit }}개만 표시 중입니다.
+          <a href="{{ url_for('profile', all='1') }}">전체 보기</a>
+        {% else %}
+          전체 기록을 표시 중입니다.
+          <a href="{{ url_for('profile') }}">최근 {{ recent_limit }}개만 보기</a>
+        {% endif %}
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -788,6 +934,15 @@ PROFILE_HTML = """
       </div>
 
       <h2>마일리지 수동 조정 내역</h2>
+      <p class="small">
+        {% if not all_mode %}
+          최근 {{ recent_limit }}개만 표시 중입니다.
+          <a href="{{ url_for('profile', all='1') }}">전체 보기</a>
+        {% else %}
+          전체 기록을 표시 중입니다.
+          <a href="{{ url_for('profile') }}">최근 {{ recent_limit }}개만 보기</a>
+        {% endif %}
+      </p>
       <div class="table-wrap">
         <table>
           <thead>
@@ -829,7 +984,7 @@ def require_login(role=None):
     return user, None
 
 
-def load_all_shifts(current_user, start=None, end=None):
+def load_all_shifts(current_user, start=None, end=None, limit=None):
     db = get_db()
     sql = """
         SELECT s.*, u.name
@@ -847,6 +1002,9 @@ def load_all_shifts(current_user, start=None, end=None):
     if conditions:
         sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY s.shift_date ASC, s.start_time ASC"
+    if limit is not None:
+        sql += " LIMIT ?"
+        params.append(limit)
     rows = db.execute(sql, params).fetchall()
 
     result = []
@@ -1050,8 +1208,19 @@ def worker_dashboard():
             )
             db.commit()
 
-    shifts = load_all_shifts(user)
+    # 전체 출퇴근 계획: 최근 N개 + 전체 보기 토글
+    shift_limit = 50
+    show_all_shifts = request.args.get("all_shifts") == "1"
+    shifts = load_all_shifts(user, limit=None if show_all_shifts else shift_limit)
+
     today = datetime.utcnow().strftime("%Y-%m-%d")
+    auto_m, manual_m, total_m = get_user_mileage(user["id"])
+    pending_row = db.execute(
+        "SELECT COUNT(*) AS c FROM payout_requests WHERE user_id = ? AND status = 'pending'",
+        (user["id"],),
+    ).fetchone()
+    pending_payout = pending_row["c"] > 0 if pending_row else False
+
     return render_template_string(
         DASHBOARD_HTML,
         title="기사 출퇴근 계획",
@@ -1062,6 +1231,11 @@ def worker_dashboard():
         filter_end=None,
         workers=[],
         owner_adjustments=[],
+        payout_requests=[],
+        total_mileage=total_m,
+        pending_payout=pending_payout,
+        show_all_shifts=show_all_shifts,
+        shift_limit=shift_limit,
         common_css=COMMON_CSS,
     )
 
@@ -1077,7 +1251,16 @@ def owner_dashboard():
     start = request.args.get("start") or None
     end = request.args.get("end") or None
 
-    shifts = load_all_shifts(user, start, end)
+    # 기간이 지정되지 않았다면 오늘 ~ 7일 후 기본 범위
+    if not start and not end:
+        today_date = datetime.utcnow().date()
+        start = today_date.strftime("%Y-%m-%d")
+        end = (today_date + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    shift_limit = 50
+    show_all_shifts = request.args.get("all_shifts") == "1"
+
+    shifts = load_all_shifts(user, start, end, limit=None if show_all_shifts else shift_limit)
     today = datetime.utcnow().strftime("%Y-%m-%d")
     workers = db.execute("SELECT id, name FROM users WHERE role='worker' ORDER BY name").fetchall()
     owner_adjustments = db.execute(
@@ -1086,6 +1269,15 @@ def owner_dashboard():
         FROM mileage_adjustments m
         JOIN users u ON m.user_id = u.id
         ORDER BY m.created_at DESC
+        LIMIT 50
+        """
+    ).fetchall()
+    payout_requests = db.execute(
+        """
+        SELECT p.*, u.name
+        FROM payout_requests p
+        JOIN users u ON p.user_id = u.id
+        ORDER BY p.created_at DESC
         LIMIT 50
         """
     ).fetchall()
@@ -1099,6 +1291,11 @@ def owner_dashboard():
         filter_end=end,
         workers=workers,
         owner_adjustments=owner_adjustments,
+        payout_requests=payout_requests,
+        total_mileage=0,
+        pending_payout=False,
+        show_all_shifts=show_all_shifts,
+        shift_limit=shift_limit,
         common_css=COMMON_CSS,
     )
 
@@ -1210,6 +1407,76 @@ def delete_mileage(adj_id):
     return redirect(url_for("owner_dashboard"))
 
 
+# ----- 마일리지 출납 요청 / 처리 -----
+@app.route("/worker/payout/request", methods=["POST"])
+def request_payout():
+    user, resp = require_login("worker")
+    if resp:
+        return resp
+
+    db = get_db()
+    # 이미 대기 중인 요청이 있으면 새로 만들지 않음
+    pending = db.execute(
+        "SELECT 1 FROM payout_requests WHERE user_id = ? AND status = 'pending' LIMIT 1",
+        (user["id"],),
+    ).fetchone()
+    if pending:
+        return redirect(url_for("worker_dashboard"))
+
+    _, _, total_m = get_user_mileage(user["id"])
+    if total_m <= 0:
+        return redirect(url_for("worker_dashboard"))
+
+    db.execute(
+        """
+        INSERT INTO payout_requests (user_id, amount, status, note, created_at, completed_at)
+        VALUES (?, ?, 'pending', ?, ?, NULL)
+        """,
+        (
+            user["id"],
+            total_m,
+            "마일리지 출납요청",
+            datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
+        ),
+    )
+    db.commit()
+    return redirect(url_for("worker_dashboard"))
+
+
+@app.route("/owner/payout/<int:req_id>/complete", methods=["POST"])
+def complete_payout(req_id):
+    user, resp = require_login("owner")
+    if resp:
+        return resp
+
+    db = get_db()
+    req = db.execute("SELECT * FROM payout_requests WHERE id = ?", (req_id,)).fetchone()
+    if not req or req["status"] == "completed":
+        return redirect(url_for("owner_dashboard"))
+
+    # 상태 변경
+    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
+    db.execute(
+        "UPDATE payout_requests SET status = 'completed', completed_at = ? WHERE id = ?",
+        (now_str, req_id),
+    )
+    # 마일리지 차감 기록 추가
+    db.execute(
+        """
+        INSERT INTO mileage_adjustments (user_id, amount, note, created_at)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            req["user_id"],
+            -req["amount"],
+            "출납완료 차감",
+            now_str,
+        ),
+    )
+    db.commit()
+    return redirect(url_for("owner_dashboard"))
+
+
 # ----- 내 정보 페이지 -----
 @app.route("/me")
 def profile():
@@ -1218,41 +1485,53 @@ def profile():
         return resp
 
     db = get_db()
-    auto_row = db.execute(
-        "SELECT COALESCE(SUM(mileage),0) AS total FROM shifts WHERE user_id = ?",
-        (user["id"],),
-    ).fetchone()
-    auto_mileage = auto_row["total"] if auto_row and auto_row["total"] is not None else 0
+    auto_mileage, manual_mileage, total_mileage = get_user_mileage(user["id"])
 
-    manual_row = db.execute(
-        "SELECT COALESCE(SUM(amount),0) AS total FROM mileage_adjustments WHERE user_id = ?",
-        (user["id"],),
-    ).fetchone()
-    manual_mileage = manual_row["total"] if manual_row and manual_row["total"] is not None else 0
+    all_mode = request.args.get("all") == "1"
+    recent_limit = 20
 
-    total_mileage = auto_mileage + manual_mileage
+    if all_mode:
+        recent_shifts = db.execute(
+            """
+            SELECT shift_date, start_time, end_time, note, mileage, created_at
+            FROM shifts
+            WHERE user_id = ?
+            ORDER BY shift_date DESC, start_time DESC
+            """,
+            (user["id"],),
+        ).fetchall()
 
-    recent_shifts = db.execute(
-        """
-        SELECT shift_date, start_time, end_time, note, mileage, created_at
-        FROM shifts
-        WHERE user_id = ?
-        ORDER BY shift_date DESC, start_time DESC
-        LIMIT 30
-        """,
-        (user["id"],),
-    ).fetchall()
+        my_adjustments = db.execute(
+            """
+            SELECT amount, note, created_at
+            FROM mileage_adjustments
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            """,
+            (user["id"],),
+        ).fetchall()
+    else:
+        recent_shifts = db.execute(
+            """
+            SELECT shift_date, start_time, end_time, note, mileage, created_at
+            FROM shifts
+            WHERE user_id = ?
+            ORDER BY shift_date DESC, start_time DESC
+            LIMIT ?
+            """,
+            (user["id"], recent_limit),
+        ).fetchall()
 
-    my_adjustments = db.execute(
-        """
-        SELECT amount, note, created_at
-        FROM mileage_adjustments
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT 30
-        """,
-        (user["id"],),
-    ).fetchall()
+        my_adjustments = db.execute(
+            """
+            SELECT amount, note, created_at
+            FROM mileage_adjustments
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+            """,
+            (user["id"], recent_limit),
+        ).fetchall()
 
     return render_template_string(
         PROFILE_HTML,
@@ -1262,6 +1541,8 @@ def profile():
         total_mileage=total_mileage,
         recent_shifts=recent_shifts,
         my_adjustments=my_adjustments,
+        all_mode=all_mode,
+        recent_limit=recent_limit,
         common_css=COMMON_CSS,
     )
 
