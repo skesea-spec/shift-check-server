@@ -112,17 +112,37 @@ INDEX_HTML = """
 <html lang="ko">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Shift Check - 출퇴근 계획</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f4f4f4; }
-    .wrap { max-width: 480px; margin:40px auto; padding:24px; background:white; border-radius:12px;
-            box-shadow:0 4px 12px rgba(0,0,0,0.05); text-align:center; }
-    h1 { margin-bottom:8px; }
-    .role-btns a { display:block; margin:12px 0; padding:12px; border-radius:8px; text-decoration:none;
-                   font-weight:600; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#f4f4f4;
+      font-size:18px;
+      line-height:1.5;
+    }
+    .wrap {
+      max-width: 460px;
+      margin:16px auto;
+      padding:24px 20px;
+      background:white;
+      border-radius:16px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.05);
+      text-align:center;
+    }
+    h1 { margin-bottom:8px; font-size:1.6rem; }
+    .role-btns a {
+      display:block;
+      margin:14px 0;
+      padding:14px 16px;
+      border-radius:10px;
+      text-decoration:none;
+      font-weight:600;
+      font-size:1.1rem;
+    }
     .worker { background:#e0f2ff; color:#0052a3; }
     .owner { background:#ffe8d5; color:#a34700; }
-    .small { color:#666; font-size:0.9rem; margin-top:12px; }
+    .small { color:#666; font-size:0.95rem; margin-top:12px; }
   </style>
 </head>
 <body>
@@ -155,18 +175,48 @@ AUTH_HTML = """
 <html lang="ko">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f4f4f4; }
-    .wrap { max-width: 420px; margin:40px auto; padding:24px; background:white; border-radius:12px;
-            box-shadow:0 4px 12px rgba(0,0,0,0.05); }
-    h1 { margin-bottom:16px; }
-    label { display:block; margin-top:12px; font-weight:600; font-size:0.9rem; }
-    input { width:100%; padding:8px; margin-top:4px; box-sizing:border-box; border-radius:6px; border:1px solid #ccc; }
-    button { margin-top:16px; width:100%; padding:10px; border:none; border-radius:8px; background:#4f46e5; color:white;
-             font-size:1rem; font-weight:600; cursor:pointer; }
-    .small { margin-top:12px; font-size:0.9rem; color:#555; }
-    .error { color:#c00; margin-top:8px; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#f4f4f4;
+      font-size:18px;
+      line-height:1.5;
+    }
+    .wrap {
+      max-width: 460px;
+      margin:16px auto;
+      padding:24px 20px;
+      background:white;
+      border-radius:16px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.05);
+    }
+    h1 { margin-bottom:16px; font-size:1.4rem; }
+    label { display:block; margin-top:14px; font-weight:600; font-size:1rem; }
+    input {
+      width:100%;
+      padding:10px;
+      margin-top:6px;
+      box-sizing:border-box;
+      border-radius:10px;
+      border:1px solid #ccc;
+      font-size:1rem;
+    }
+    button {
+      margin-top:20px;
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:12px;
+      background:#4f46e5;
+      color:white;
+      font-size:1.1rem;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .small { margin-top:14px; font-size:0.95rem; color:#555; }
+    .error { color:#c00; margin-top:10px; font-size:0.95rem; }
     a { color:#4f46e5; text-decoration:none; }
   </style>
 </head>
@@ -219,29 +269,86 @@ DASHBOARD_HTML = """
 <html lang="ko">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f4f4f4; }
-    .wrap { max-width: 900px; margin:24px auto; padding:24px; background:white; border-radius:12px;
-            box-shadow:0 4px 12px rgba(0,0,0,0.05); }
-    h1 { margin-bottom:4px; }
-    .subtitle { color:#555; margin-bottom:16px; }
-    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-    .tag { display:inline-block; padding:4px 8px; border-radius:999px; font-size:0.8rem; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#f4f4f4;
+      font-size:18px;
+      line-height:1.5;
+    }
+    .wrap {
+      max-width: 960px;
+      margin:12px auto;
+      padding:20px 14px;
+      background:white;
+      border-radius:16px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.05);
+    }
+    h1 { margin-bottom:4px; font-size:1.5rem; }
+    .subtitle { color:#555; margin-bottom:12px; }
+    .top-bar {
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      margin-bottom:16px;
+      flex-wrap:wrap;
+    }
+    .tag {
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:0.9rem;
+    }
     .tag-worker { background:#e0f2ff; color:#0052a3; }
     .tag-owner { background:#ffe8d5; color:#a34700; }
-    form { margin:16px 0 24px 0; padding:16px; background:#f9fafb; border-radius:8px; }
-    label { display:inline-block; margin-right:12px; font-size:0.9rem; }
-    input[type="date"], input[type="time"], input[type="text"] {
-        padding:4px 6px; border-radius:6px; border:1px solid #ccc;
+    form.shift-form {
+      margin:16px 0 24px 0;
+      padding:14px;
+      background:#f9fafb;
+      border-radius:12px;
+      font-size:0.95rem;
     }
-    button { padding:8px 14px; border:none; border-radius:8px; background:#4f46e5; color:white;
-             font-weight:600; cursor:pointer; }
-    table { width:100%; border-collapse:collapse; font-size:0.9rem; }
-    th, td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; }
+    label { display:inline-block; margin:8px 8px 4px 0; }
+    input[type="date"], input[type="time"], input[type="text"] {
+        padding:8px 6px;
+        border-radius:8px;
+        border:1px solid #ccc;
+        font-size:0.95rem;
+    }
+    button {
+      padding:8px 14px;
+      border:none;
+      border-radius:999px;
+      background:#4f46e5;
+      color:white;
+      font-weight:600;
+      cursor:pointer;
+      font-size:0.95rem;
+    }
+    .small { font-size:0.85rem; color:#666; margin-top:6px; }
+
+    .table-wrap { overflow-x:auto; margin-top:12px; }
+    table { width:100%; border-collapse:collapse; font-size:0.9rem; min-width:640px; }
+    th, td { border-bottom:1px solid #eee; padding:8px 6px; text-align:left; white-space:nowrap; }
     th { background:#f9fafb; }
     tr:nth-child(even) { background:#fafafa; }
-    .small { font-size:0.85rem; color:#666; margin-top:8px; }
+    .actions a, .actions button {
+      font-size:0.8rem;
+      padding:4px 8px;
+      border-radius:999px;
+      margin-left:4px;
+    }
+    .actions form { display:inline; }
+    .filter-form {
+      margin:8px 0 16px 0;
+      padding:10px;
+      background:#f9fafb;
+      border-radius:12px;
+      font-size:0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -265,55 +372,151 @@ DASHBOARD_HTML = """
 
     {% if user['role'] == 'worker' %}
       <h2>오늘/향후 근무 계획 입력</h2>
-      <form method="post">
-        <label>날짜
+      <form method="post" class="shift-form">
+        <label>날짜<br>
           <input type="date" name="shift_date" value="{{ today }}" required>
         </label>
-        <label>출근
+        <label>출근<br>
           <input type="time" name="start_time" required>
         </label>
-        <label>퇴근
+        <label>퇴근<br>
           <input type="time" name="end_time" required>
         </label>
-        <label>메모
-          <input type="text" name="note" placeholder="예: 강남구 위주, 점심만" style="width:220px;">
+        <label>메모<br>
+          <input type="text" name="note" placeholder="예: 강남구 위주, 점심만" style="min-width:220px;">
         </label>
+        <br>
         <button type="submit">저장</button>
       </form>
     {% else %}
-      <p class="small">
-        사업주 화면에서는 전체 기사들의 출퇴근 계획을 한눈에 볼 수 있습니다.
-      </p>
+      <div class="filter-form">
+        <form method="get">
+          <label>시작 날짜
+            <input type="date" name="start" value="{{ filter_start or '' }}">
+          </label>
+          <label>끝 날짜
+            <input type="date" name="end" value="{{ filter_end or '' }}">
+          </label>
+          <button type="submit">조회</button>
+        </form>
+        <p class="small">날짜를 비워두면 전체 기간을 조회합니다.</p>
+      </div>
     {% endif %}
 
     <h2>전체 출퇴근 계획</h2>
     <p class="small">기사/사업주 누구나 같은 화면을 보고 협의할 수 있습니다.</p>
-    <table>
-      <thead>
-        <tr>
-          <th>날짜</th>
-          <th>이름</th>
-          <th>출근</th>
-          <th>퇴근</th>
-          <th>메모</th>
-          <th>등록시간</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in shifts %}
+    <div class="table-wrap">
+      <table>
+        <thead>
           <tr>
-            <td>{{ s['shift_date'] }}</td>
-            <td>{{ s['name'] }}</td>
-            <td>{{ s['start_time'] }}</td>
-            <td>{{ s['end_time'] }}</td>
-            <td>{{ s['note'] or '' }}</td>
-            <td>{{ s['created_at'] }}</td>
+            <th>날짜</th>
+            <th>이름</th>
+            <th>출근</th>
+            <th>퇴근</th>
+            <th>메모</th>
+            <th>등록시간 / 관리</th>
           </tr>
-        {% else %}
-          <tr><td colspan="6">아직 등록된 출퇴근 계획이 없습니다.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for s in shifts %}
+            <tr>
+              <td>{{ s['shift_date'] }}</td>
+              <td>{{ s['name'] }}</td>
+              <td>{{ s['start_time'] }}</td>
+              <td>{{ s['end_time'] }}</td>
+              <td>{{ s['note'] or '' }}</td>
+              <td>
+                {{ s['created_at'] }}
+                {% if s['can_manage'] %}
+                  <span class="actions">
+                    <a href="{{ url_for('edit_shift', shift_id=s['id']) }}">수정</a>
+                    <form method="post" action="{{ url_for('delete_shift', shift_id=s['id']) }}" onsubmit="return confirm('이 기록을 삭제할까요?');">
+                      <button type="submit">삭제</button>
+                    </form>
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6">아직 등록된 출퇴근 계획이 없습니다.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
+EDIT_SHIFT_HTML = """
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>출퇴근 기록 수정</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:#f4f4f4;
+      font-size:18px;
+      line-height:1.5;
+    }
+    .wrap {
+      max-width: 460px;
+      margin:16px auto;
+      padding:24px 20px;
+      background:white;
+      border-radius:16px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.05);
+    }
+    h1 { margin-bottom:16px; font-size:1.4rem; }
+    label { display:block; margin-top:14px; font-weight:600; font-size:1rem; }
+    input {
+      width:100%;
+      padding:10px;
+      margin-top:6px;
+      box-sizing:border-box;
+      border-radius:10px;
+      border:1px solid #ccc;
+      font-size:1rem;
+    }
+    button {
+      margin-top:20px;
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:12px;
+      background:#4f46e5;
+      color:white;
+      font-size:1.1rem;
+      font-weight:600;
+      cursor:pointer;
+    }
+    .small { margin-top:14px; font-size:0.95rem; color:#555; }
+    a { color:#4f46e5; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>출퇴근 기록 수정</h1>
+    <form method="post">
+      <label>날짜
+        <input type="date" name="shift_date" value="{{ shift['shift_date'] }}" required>
+      </label>
+      <label>출근
+        <input type="time" name="start_time" value="{{ shift['start_time'] }}" required>
+      </label>
+      <label>퇴근
+        <input type="time" name="end_time" value="{{ shift['end_time'] }}" required>
+      </label>
+      <label>메모
+        <input type="text" name="note" value="{{ shift['note'] or '' }}">
+      </label>
+      <button type="submit">저장하기</button>
+    </form>
+    <p class="small"><a href="{{ back_url }}">← 돌아가기</a></p>
   </div>
 </body>
 </html>
@@ -481,17 +684,32 @@ def require_login(role=None):
     return user, None
 
 
-def load_all_shifts():
+def load_all_shifts(current_user, start=None, end=None):
     db = get_db()
-    rows = db.execute(
-        """
+    sql = """
         SELECT s.*, u.name
         FROM shifts s
         JOIN users u ON s.user_id = u.id
-        ORDER BY s.shift_date ASC, s.start_time ASC
-        """
-    ).fetchall()
-    return rows
+    """
+    conditions = []
+    params = []
+    if start:
+        conditions.append("s.shift_date >= ?")
+        params.append(start)
+    if end:
+        conditions.append("s.shift_date <= ?")
+        params.append(end)
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY s.shift_date ASC, s.start_time ASC"
+    rows = db.execute(sql, params).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["can_manage"] = (current_user["role"] == "owner") or (current_user["id"] == r["user_id"])
+        result.append(d)
+    return result
 
 
 # ---- 기사 대시보드 ----
@@ -525,7 +743,7 @@ def worker_dashboard():
             )
             db.commit()
 
-    shifts = load_all_shifts()
+    shifts = load_all_shifts(user)
     today = datetime.utcnow().strftime("%Y-%m-%d")
     return render_template_string(
         DASHBOARD_HTML,
@@ -533,6 +751,8 @@ def worker_dashboard():
         user=user,
         shifts=shifts,
         today=today,
+        filter_start=None,
+        filter_end=None,
     )
 
 
@@ -544,7 +764,10 @@ def owner_dashboard():
     if resp:
         return resp
 
-    shifts = load_all_shifts()
+    start = request.args.get("start") or None
+    end = request.args.get("end") or None
+
+    shifts = load_all_shifts(user, start, end)
     today = datetime.utcnow().strftime("%Y-%m-%d")
     return render_template_string(
         DASHBOARD_HTML,
@@ -552,7 +775,69 @@ def owner_dashboard():
         user=user,
         shifts=shifts,
         today=today,
+        filter_start=start,
+        filter_end=end,
     )
+
+
+# ---- 출퇴근 기록 수정/삭제 ----
+
+def can_manage_shift(user, shift_row):
+    return (user["role"] == "owner") or (user["id"] == shift_row["user_id"])
+
+
+@app.route("/shift/<int:shift_id>/edit", methods=["GET", "POST"])
+def edit_shift(shift_id):
+    user, resp = require_login()
+    if resp:
+        return resp
+
+    db = get_db()
+    shift = db.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,)).fetchone()
+    if not shift or not can_manage_shift(user, shift):
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        shift_date = request.form.get("shift_date")
+        start_time = request.form.get("start_time")
+        end_time = request.form.get("end_time")
+        note = request.form.get("note", "").strip()
+        if shift_date and start_time and end_time:
+            db.execute(
+                """
+                UPDATE shifts
+                SET shift_date = ?, start_time = ?, end_time = ?, note = ?
+                WHERE id = ?
+                """,
+                (shift_date, start_time, end_time, note, shift_id),
+            )
+            db.commit()
+            # 돌아갈 위치: 역할에 따라
+            if user["role"] == "worker":
+                return redirect(url_for("worker_dashboard"))
+            else:
+                return redirect(url_for("owner_dashboard"))
+
+    back_url = url_for("worker_dashboard") if user["role"] == "worker" else url_for("owner_dashboard")
+    return render_template_string(EDIT_SHIFT_HTML, shift=shift, back_url=back_url)
+
+
+@app.route("/shift/<int:shift_id>/delete", methods=["POST"])
+def delete_shift(shift_id):
+    user, resp = require_login()
+    if resp:
+        return resp
+
+    db = get_db()
+    shift = db.execute("SELECT * FROM shifts WHERE id = ?", (shift_id,)).fetchone()
+    if shift and can_manage_shift(user, shift):
+        db.execute("DELETE FROM shifts WHERE id = ?", (shift_id,))
+        db.commit()
+
+    if user["role"] == "worker":
+        return redirect(url_for("worker_dashboard"))
+    else:
+        return redirect(url_for("owner_dashboard"))
 
 
 if __name__ == "__main__":
