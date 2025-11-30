@@ -15,10 +15,69 @@ DATABASE = os.path.join(BASE_DIR, "shift.db")
 # ---------------- DB 유틸 ----------------
 
 def get_db():
+    """요청당 한 번만 연결하고, 테이블이 없으면 만든다."""
     if "db" not in g:
+        first = not os.path.exists(DATABASE)
         g.db = sqlite3.connect(DATABASE)
         g.db.row_factory = sqlite3.Row
+        if first:
+            init_db(g.db)
+        else:
+            # 혹시 파일은 있는데 테이블이 없을 수도 있으니 안전하게 한 번 더 실행
+            init_db(g.db, if_not_exists=True)
     return g.db
+
+
+def init_db(db, if_not_exists: bool = False):
+    """DB 테이블 생성. if_not_exists=True면 IF NOT EXISTS 옵션 사용."""
+    if if_not_exists:
+        users_sql = """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                role TEXT NOT NULL,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+        """
+        shifts_sql = """
+            CREATE TABLE IF NOT EXISTS shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                shift_date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """
+    else:
+        users_sql = """
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                role TEXT NOT NULL,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+        """
+        shifts_sql = """
+            CREATE TABLE shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                shift_date TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+        """
+    db.executescript(users_sql + shifts_sql)
+    db.commit()
 
 
 @app.teardown_appcontext
@@ -26,35 +85,6 @@ def close_db(exc):
     db = g.pop("db", None)
     if db is not None:
         db.close()
-
-
-@app.before_first_request
-def init_db():
-    """첫 요청 전에 DB 테이블 없으면 새로 생성."""
-    db = get_db()
-    db.executescript(
-        '''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            role TEXT NOT NULL,           -- 'worker' or 'owner'
-            name TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS shifts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            shift_date TEXT NOT NULL,     -- YYYY-MM-DD
-            start_time TEXT NOT NULL,     -- HH:MM
-            end_time TEXT NOT NULL,       -- HH:MM
-            note TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        );
-        '''
-    )
-    db.commit()
 
 
 def get_current_user():
