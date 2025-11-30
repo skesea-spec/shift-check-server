@@ -10,6 +10,9 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "shift.db")
 
+# 24시간제 30분 단위 선택용 타임 리스트
+TIME_CHOICES = ["{:02d}:{:02d}".format(h, m) for h in range(24) for m in (0, 30)]
+
 # -------------------------------------------------
 # DB 유틸
 # -------------------------------------------------
@@ -547,10 +550,18 @@ DASHBOARD_HTML = """
             <input type="date" name="shift_date" value="{{ today }}" required>
           </label>
           <label class="inline">출근<br>
-            <input type="text" name="start_time" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="예: 09:00" required>
+            <select name="start_time" required>
+              {% for t in time_choices %}
+                <option value="{{ t }}" {% if t == default_start %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
           </label>
           <label class="inline">퇴근<br>
-            <input type="text" name="end_time" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" placeholder="예: 18:00" required>
+            <select name="end_time" required>
+              {% for t in time_choices %}
+                <option value="{{ t }}" {% if t == default_end %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
           </label>
           <label class="inline">메모<br>
             <input type="text" name="note" placeholder="예: 강남구 위주, 야간 가능" style="min-width:240px;">
@@ -764,7 +775,7 @@ EDIT_SHIFT_HTML = """
       font-weight:600;
       font-size:1rem;
     }
-    input {
+    input, select {
       width:100%;
       padding:10px;
       margin-top:6px;
@@ -799,10 +810,18 @@ EDIT_SHIFT_HTML = """
           <input type="date" name="shift_date" value="{{ shift['shift_date'] }}" required>
         </label>
         <label>출근 (24시간제, 예: 09:00)
-          <input type="text" name="start_time" value="{{ shift['start_time'] }}" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" required>
+          <select name="start_time" required>
+            {% for t in time_choices %}
+              <option value="{{ t }}" {% if t == shift['start_time'] %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
         </label>
         <label>퇴근 (24시간제, 예: 18:00)
-          <input type="text" name="end_time" value="{{ shift['end_time'] }}" inputmode="numeric" pattern="[0-2][0-9]:[0-5][0-9]" required>
+          <select name="end_time" required>
+            {% for t in time_choices %}
+              <option value="{{ t }}" {% if t == shift['end_time'] %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
         </label>
         <label>메모
           <input type="text" name="note" value="{{ shift['note'] or '' }}">
@@ -1237,6 +1256,9 @@ def worker_dashboard():
         show_all_shifts=show_all_shifts,
         shift_limit=shift_limit,
         common_css=COMMON_CSS,
+        time_choices=TIME_CHOICES,
+        default_start="09:00",
+        default_end="18:00",
     )
 
 
@@ -1297,6 +1319,9 @@ def owner_dashboard():
         show_all_shifts=show_all_shifts,
         shift_limit=shift_limit,
         common_css=COMMON_CSS,
+        time_choices=TIME_CHOICES,
+        default_start="09:00",
+        default_end="18:00",
     )
 
 
@@ -1340,6 +1365,7 @@ def edit_shift(shift_id):
         shift=shift,
         back_url=back_url,
         common_css=COMMON_CSS,
+        time_choices=TIME_CHOICES,
     )
 
 
